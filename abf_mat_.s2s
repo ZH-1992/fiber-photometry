@@ -1,0 +1,60 @@
+'get the .abf file name in the current directory
+var name$[100],filenum%;
+filenum%:=FileList(name$[],-1,"*.abf");
+
+'convert the .abf file to .smr file
+var i%;
+for i%:=0 to filenum%-1 do
+    FileConvert$(name$[i%]);
+next;
+
+'open the smr file 
+FileList(name$[],-1,"*.smr");
+var chan%;
+chan%:=1; 'this variable chan% is the number of a channel which must be exist in the file
+for i%:=0 to filenum%-1 do
+    var h%;
+    h%:=FileOpen(name$[i%],0,3);
+    FrontView(h%);
+    var st,nt,mt,dt;
+    dt:=binsize(chan%); 'sample interval
+    st:=0;
+    mt:=MaxTime(chan%);
+
+    var tgap,ct[200],index%;
+    index%:=0;
+    repeat
+        nt:=NextTime(chan%,st);
+        if nt>-1 then
+            tgap:=nt-st;
+            if tgap > 1.1*dt then
+                index%+=1;
+                ct[index%]:=st+tgap/2;
+            endif
+            st:=nt;
+        endif
+    until nt=-1;
+    index%+=1;
+    ct[0]:=0;
+    ct[index%]:=mt;
+
+    'export the data to matlab
+    var matname$,i1%;
+    for i1%:=0 to index%-1 do
+        if i1%<10 then
+            matname$:=DelStr$(name$[i%],len(name$[i%])-3,4)+"a00"+str$(i1%,1)+".mat";
+        endif
+        if i1%>=10 and i%<100 then
+            matname$:=DelStr$(name$[i%],len(name$[i%])-3,4)+"a0"+str$(i1%,2)+".mat";
+        endif
+        if i1%>=100 then
+            matname$:=DelStr$(name$[i%],len(name$[i%])-3,4)+"a"+str$(i1%,3)+".mat";
+        endif
+    
+        ExportChanList();
+        ExportChanList(ct[i1%],ct[i1%+1],chan%);
+        FileSaveAs(matname$,100,0,"",0,"UseSName=1|UseCName=0|WaveTimes=0|BinFreq=0|BinTimes=0"
+        "|WaveData=2|MarkAs=1|TMarkAs=2|RMarkAs=2|RMarkData=2|WaveMarkAs=2|WaveMarkData=2|Compatability=0"); 
+    next;
+    fileclose();
+next;
